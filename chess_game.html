@@ -469,7 +469,9 @@
         <option value="custom">Custom</option>
       </select>
       <span class="custom-time-inputs" id="customTimeInputs" style="display: none;">
-        <input type="number" id="customMinutes" min="0" max="180" value="5" title="Minutes">
+        <input type="number" id="customHours" min="0" max="23" value="0" title="Hours">
+        <span>h</span>
+        <input type="number" id="customMinutes" min="0" max="59" value="5" title="Minutes">
         <span>:</span>
         <input type="number" id="customSeconds" min="0" max="59" value="0" title="Seconds">
         <span>+</span>
@@ -970,10 +972,11 @@ function showGameOver(message) {
 function parseTimeControl() {
   const sel = document.getElementById('timeControlSelector');
   if (sel.value === 'custom') {
+    const hrs = Math.max(0, parseInt(document.getElementById('customHours').value, 10) || 0);
     const min = Math.max(0, parseInt(document.getElementById('customMinutes').value, 10) || 0);
     const sec = Math.max(0, parseInt(document.getElementById('customSeconds').value, 10) || 0);
     const inc = Math.max(0, parseInt(document.getElementById('customIncrement').value, 10) || 0);
-    return { base: Math.max(1, min * 60 + sec), increment: inc };
+    return { base: Math.max(1, hrs * 3600 + min * 60 + sec), increment: inc };
   }
   const [base, inc] = sel.value.split(':').map(Number);
   return { base, increment: inc };
@@ -981,8 +984,12 @@ function parseTimeControl() {
 
 function formatClockTime(totalSeconds) {
   const s = Math.max(0, Math.ceil(totalSeconds));
-  const m = Math.floor(s / 60);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
   const rem = s % 60;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${rem.toString().padStart(2, '0')}`;
+  }
   return `${m}:${rem.toString().padStart(2, '0')}`;
 }
 
