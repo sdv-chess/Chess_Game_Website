@@ -172,22 +172,34 @@
       font-size: 0.85rem;
     }
 
-    .clocks-row {
-      display: flex;
-      gap: 10px;
-    }
-
     .clock-display {
-      flex: 1;
+      width: 100%;
       display: flex;
       align-items: center;
       justify-content: space-between;
       background: #1e2124;
       border: 2px solid #3a3f47;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 10px 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
+
+    .clock-time-group {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .clock-bonus {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #4ade80;
+      min-width: 26px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .clock-bonus.visible { opacity: 1; }
 
     .clock-label {
       font-size: 0.85rem;
@@ -436,11 +448,165 @@
     .game-over-banner.active {
       display: block;
     }
+
+    /* =========================================================
+       Auth Screen
+       ========================================================= */
+    .auth-screen {
+      position: fixed;
+      inset: 0;
+      background: #1e2124;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 200;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 380px;
+      background: #2b2f36;
+      border-radius: 14px;
+      padding: 32px 28px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .auth-title {
+      font-size: 1.7rem;
+      text-align: center;
+    }
+
+    .auth-subtitle {
+      text-align: center;
+      color: #b8bec7;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+
+    .auth-tabs {
+      display: flex;
+      background: #1e2124;
+      border-radius: 8px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .auth-tab {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 9px 10px;
+      border-radius: 6px;
+      color: #b8bec7;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .auth-tab.active {
+      background: #3a3f47;
+      color: #fff;
+    }
+
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .auth-form label {
+      font-size: 0.8rem;
+      color: #b8bec7;
+      margin-top: 4px;
+    }
+
+    .auth-form input {
+      background: #1e2124;
+      border: 1px solid #3a3f47;
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 0.95rem;
+      width: 100%;
+    }
+
+    .auth-form input:focus {
+      outline: none;
+      border-color: #ffca28;
+    }
+
+    .auth-message {
+      font-size: 0.85rem;
+      min-height: 1.1em;
+      line-height: 1.3;
+    }
+    .auth-message.error { color: #ff4d4d; }
+    .auth-message.success { color: #4ade80; }
+
+    .auth-submit {
+      background: #ffca28;
+      color: #1e2124;
+      border: none;
+      border-radius: 8px;
+      padding: 11px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .auth-submit:hover { background: #ffd54f; }
+    .auth-submit:disabled { opacity: 0.6; cursor: default; }
+
+    /* Signed-in user badge, shown in the header once logged in */
+    .user-badge {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: #b8bec7;
+    }
+    .user-badge button {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+
+    #appContainer {
+      display: none;
+    }
   </style>
 </head>
 <body>
 
-<div class="app-container">
+<!-- Sign-in / Create-account screen, shown until Supabase confirms a session -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-title">♟ Chess</div>
+    <div class="auth-subtitle">Sign in with your email to play</div>
+
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab active" id="tabSignIn">Sign In</button>
+      <button type="button" class="auth-tab" id="tabSignUp">Create Account</button>
+    </div>
+
+    <form id="authForm" class="auth-form">
+      <label for="authEmail">Email</label>
+      <input type="email" id="authEmail" required autocomplete="email" placeholder="you@example.com">
+
+      <label for="authPassword">Password</label>
+      <input type="password" id="authPassword" required minlength="6" autocomplete="current-password" placeholder="At least 6 characters">
+
+      <div class="auth-message" id="authMessage"></div>
+
+      <button type="submit" class="auth-submit" id="authSubmitBtn">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<div class="app-container" id="appContainer">
   <div class="header-bar">
     <div class="status-box">
       <span class="turn-indicator white" id="turnIndicator"></span>
@@ -453,6 +619,10 @@
         <option value="3">Set 3: Walnut Warm Wood</option>
       </select>
       <button id="resetBtn">New Game</button>
+    </div>
+    <div class="user-badge" id="userBadge">
+      <span id="userEmailLabel"></span>
+      <button type="button" id="signOutBtn">Sign Out</button>
     </div>
   </div>
 
@@ -479,15 +649,14 @@
         <span>sec</span>
       </span>
     </div>
-    <div class="clocks-row">
-      <div class="clock-display" id="blackClockDisplay">
-        <span class="clock-label">Black</span>
-        <span class="clock-time" id="blackClockTime">--:--</span>
-      </div>
-      <div class="clock-display" id="whiteClockDisplay">
-        <span class="clock-label">White</span>
-        <span class="clock-time" id="whiteClockTime">--:--</span>
-      </div>
+  </div>
+
+  <!-- Black sits at the top of the board, so Black's clock lives above it -->
+  <div class="clock-display" id="blackClockDisplay">
+    <span class="clock-label">Black</span>
+    <div class="clock-time-group">
+      <span class="clock-bonus" id="blackClockBonus"></span>
+      <span class="clock-time" id="blackClockTime">--:--</span>
     </div>
   </div>
 
@@ -508,9 +677,138 @@
       </div>
     </div>
   </div>
+
+  <!-- White sits at the bottom of the board, so White's clock lives below it -->
+  <div class="clock-display" id="whiteClockDisplay">
+    <span class="clock-label">White</span>
+    <div class="clock-time-group">
+      <span class="clock-bonus" id="whiteClockBonus"></span>
+      <span class="clock-time" id="whiteClockTime">--:--</span>
+    </div>
+  </div>
 </div>
 
+<!-- Supabase client library (loaded from CDN, no install step needed) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+/* =========================================================
+   0. Supabase Auth
+   =========================================================
+   1. Create a free project at https://supabase.com
+   2. In your project: Project Settings -> API
+      - Copy "Project URL" into SUPABASE_URL below
+      - Copy the "anon public" key into SUPABASE_ANON_KEY below
+   3. In Authentication -> Providers, make sure "Email" is enabled
+      (it is by default). That's all the backend setup this page needs.
+   ========================================================= */
+const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const authScreen = document.getElementById('authScreen');
+const appContainer = document.getElementById('appContainer');
+const authForm = document.getElementById('authForm');
+const authEmail = document.getElementById('authEmail');
+const authPassword = document.getElementById('authPassword');
+const authMessage = document.getElementById('authMessage');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const tabSignIn = document.getElementById('tabSignIn');
+const tabSignUp = document.getElementById('tabSignUp');
+const userBadge = document.getElementById('userBadge');
+const userEmailLabel = document.getElementById('userEmailLabel');
+const signOutBtn = document.getElementById('signOutBtn');
+
+let authMode = 'signin'; // 'signin' | 'signup'
+
+function setAuthMode(mode) {
+  authMode = mode;
+  tabSignIn.classList.toggle('active', mode === 'signin');
+  tabSignUp.classList.toggle('active', mode === 'signup');
+  authSubmitBtn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
+  authPassword.autocomplete = mode === 'signin' ? 'current-password' : 'new-password';
+  clearAuthMessage();
+}
+
+function showAuthMessage(text, isError = true) {
+  authMessage.textContent = text;
+  authMessage.classList.toggle('error', isError);
+  authMessage.classList.toggle('success', !isError);
+}
+
+function clearAuthMessage() {
+  authMessage.textContent = '';
+  authMessage.classList.remove('error', 'success');
+}
+
+tabSignIn.addEventListener('click', () => setAuthMode('signin'));
+tabSignUp.addEventListener('click', () => setAuthMode('signup'));
+
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAuthMessage();
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+  authSubmitBtn.disabled = true;
+
+  try {
+    if (authMode === 'signin') {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      // onAuthStateChange below handles showing the app
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) throw error;
+      if (data.user && !data.session) {
+        // Email confirmation is required before a session is issued
+        showAuthMessage('Account created! Check your email to confirm, then sign in.', false);
+        setAuthMode('signin');
+      }
+    }
+  } catch (err) {
+    showAuthMessage(err.message || 'Something went wrong. Please try again.');
+  } finally {
+    authSubmitBtn.disabled = false;
+  }
+});
+
+signOutBtn.addEventListener('click', async () => {
+  await sb.auth.signOut();
+});
+
+function showApp(session) {
+  authScreen.style.display = 'none';
+  appContainer.style.display = 'flex';
+  userBadge.style.display = 'flex';
+  userEmailLabel.textContent = session.user.email;
+}
+
+function showAuthScreen() {
+  authScreen.style.display = 'flex';
+  appContainer.style.display = 'none';
+  userBadge.style.display = 'none';
+  authForm.reset();
+  setAuthMode('signin');
+}
+
+sb.auth.onAuthStateChange((_event, session) => {
+  if (session) {
+    showApp(session);
+  } else {
+    showAuthScreen();
+  }
+});
+
+// Check for an existing session on page load (so refreshing stays signed in)
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) {
+    showApp(session);
+  } else {
+    showAuthScreen();
+  }
+});
+
 /* =========================================================
    1. Clean Vector Chess Pieces (SVGs)
    ========================================================= */
@@ -555,13 +853,19 @@ let pendingPromotion = null; // {fromR, fromC, toR, toC}
 let gameOver = false;
 
 // Chess clock state
+// Each player gets a fixed "bonus" grace period at the start of every one of
+// their turns. While the bonus is still counting down, the main clock does
+// NOT move. Only once the bonus runs out does that player's main time begin
+// to tick. This applies from move 1 (White's very first bonus starts as soon
+// as the game loads), not just after the clock is otherwise "started".
+const CLOCK_BONUS_SECONDS = 5;
 let clockConfig = { base: 0, increment: 0 };
 let clockTime = { w: 0, b: 0 };
+let clockBonus = { w: CLOCK_BONUS_SECONDS, b: CLOCK_BONUS_SECONDS };
 let clockActiveColor = null;
 let clockIntervalId = null;
 let clockLastTick = null;
 let clockEnabled = false;
-let clockStarted = false;
 
 // Initialize board data structure (8x8)
 function initBoardState() {
@@ -919,17 +1223,12 @@ function makeMove(fromR, fromC, toR, toC, promotionChoice = null) {
   selectedSquare = null;
   legalMovesForSelected = [];
 
-  // Clock: starts ticking once White plays the first move. After that,
-  // credit the increment to whoever just moved, then tick for the other side.
+  // Clock: the clock is already ticking (bonus/main time) from the moment
+  // the game starts. Credit any increment to whoever just moved, then hand
+  // the active clock (and a fresh 5s bonus) to the other side.
   if (clockEnabled) {
-    if (!clockStarted) {
-      clockStarted = true;
-      startClockTicking();
-      setActiveClock(currentTurn);
-    } else {
-      addIncrement(color);
-      setActiveClock(currentTurn);
-    }
+    addIncrement(color);
+    setActiveClock(currentTurn);
   }
 
   // Check Game Ending States
@@ -1010,6 +1309,16 @@ function updateClockDisplay() {
   wEl.textContent = clockEnabled ? formatClockTime(clockTime.w) : '--:--';
   bEl.textContent = clockEnabled ? formatClockTime(clockTime.b) : '--:--';
 
+  const wBonusEl = document.getElementById('whiteClockBonus');
+  const bBonusEl = document.getElementById('blackClockBonus');
+  function renderBonus(color, el) {
+    const inBonus = clockEnabled && clockActiveColor === color && !gameOver && clockBonus[color] > 0;
+    el.textContent = inBonus ? `+${Math.ceil(clockBonus[color])}` : '';
+    el.classList.toggle('visible', inBonus);
+  }
+  renderBonus('w', wBonusEl);
+  renderBonus('b', bBonusEl);
+
   wBox.classList.toggle('active', clockEnabled && clockActiveColor === 'w' && !gameOver);
   bBox.classList.toggle('active', clockEnabled && clockActiveColor === 'b' && !gameOver);
   wBox.classList.toggle('low-time', clockEnabled && clockTime.w <= 20 && clockTime.w > 0);
@@ -1026,16 +1335,30 @@ function stopClock() {
 }
 
 function tickClock() {
-  if (!clockEnabled || !clockStarted || gameOver || !clockActiveColor) return;
+  if (!clockEnabled || gameOver || !clockActiveColor) return;
   const now = Date.now();
   const elapsed = (now - clockLastTick) / 1000;
   clockLastTick = now;
-  clockTime[clockActiveColor] -= elapsed;
 
-  if (clockTime[clockActiveColor] <= 0) {
-    clockTime[clockActiveColor] = 0;
+  const color = clockActiveColor;
+
+  if (clockBonus[color] > 0) {
+    // Still within the per-move bonus window: burn down the bonus first,
+    // and only spill over into the main clock once the bonus is used up.
+    clockBonus[color] -= elapsed;
+    if (clockBonus[color] < 0) {
+      const overflow = -clockBonus[color];
+      clockBonus[color] = 0;
+      clockTime[color] -= overflow;
+    }
+  } else {
+    clockTime[color] -= elapsed;
+  }
+
+  if (clockTime[color] <= 0) {
+    clockTime[color] = 0;
     updateClockDisplay();
-    handleFlagFall(clockActiveColor);
+    handleFlagFall(color);
     return;
   }
   updateClockDisplay();
@@ -1049,6 +1372,7 @@ function startClockTicking() {
 
 function setActiveClock(color) {
   clockActiveColor = color;
+  clockBonus[color] = CLOCK_BONUS_SECONDS; // fresh 5s grace period for whoever is about to move
   clockLastTick = Date.now();
   updateClockDisplay();
 }
@@ -1067,16 +1391,19 @@ function handleFlagFall(color) {
   updateClockDisplay();
 }
 
-// Reset the clock using whatever time control is currently selected. It stays
-// paused, showing full time for both sides, until White makes the first move.
+// Reset the clock using whatever time control is currently selected, and
+// start ticking immediately: White gets its 5s move bonus right away, before
+// either player has made a move.
 function setupClock() {
   const cfg = parseTimeControl();
   clockConfig = cfg;
   clockTime = { w: cfg.base, b: cfg.base };
+  clockBonus = { w: CLOCK_BONUS_SECONDS, b: CLOCK_BONUS_SECONDS };
   clockEnabled = true;
-  clockStarted = false;
   stopClock();
   clockActiveColor = 'w';
+  clockLastTick = Date.now();
+  startClockTicking();
   updateClockDisplay();
 }
 
