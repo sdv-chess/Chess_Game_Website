@@ -125,6 +125,112 @@
       transform: translateY(1px);
     }
 
+    /* Chess Clock */
+    .clock-bar {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #2b2f36;
+      padding: 12px 18px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .clock-config {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .clock-config label {
+      font-size: 0.85rem;
+      color: #b8bec7;
+      margin-right: 2px;
+    }
+
+    .custom-time-inputs {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .custom-time-inputs input[type="number"] {
+      width: 52px;
+      background: #3a3f47;
+      color: #fff;
+      border: 1px solid #525965;
+      border-radius: 6px;
+      padding: 7px 6px;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .custom-time-inputs span {
+      color: #b8bec7;
+      font-size: 0.85rem;
+    }
+
+    .clocks-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .clock-display {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1e2124;
+      border: 2px solid #3a3f47;
+      border-radius: 8px;
+      padding: 10px 16px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .clock-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #b8bec7;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .clock-time {
+      font-size: 1.4rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #f1f1f1;
+    }
+
+    .clock-display.active {
+      border-color: #ffca28;
+      box-shadow: 0 0 14px rgba(255, 202, 40, 0.35);
+    }
+    .clock-display.active .clock-time {
+      color: #ffca28;
+    }
+
+    .clock-display.low-time .clock-time {
+      color: #ff4d4d;
+      animation: clockPulse 1s ease-in-out infinite;
+    }
+
+    .clock-display.flagged {
+      border-color: #ff4d4d;
+      opacity: 0.65;
+    }
+    .clock-display.flagged .clock-time {
+      color: #ff4d4d;
+      animation: none;
+    }
+
+    @keyframes clockPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
     /* Board Frame */
     .board-wrapper {
       position: relative;
@@ -350,6 +456,39 @@
     </div>
   </div>
 
+  <div class="clock-bar">
+    <div class="clock-config">
+      <label for="timeControlSelector">Time control:</label>
+      <select id="timeControlSelector">
+        <option value="60:0">1 + 0</option>
+        <option value="180:0">3 + 0</option>
+        <option value="180:2">3 + 2</option>
+        <option value="600:5">10 + 5</option>
+        <option value="1500:10">25 + 10</option>
+        <option value="90:30">1:30 + 30</option>
+        <option value="custom">Custom</option>
+      </select>
+      <span class="custom-time-inputs" id="customTimeInputs" style="display: none;">
+        <input type="number" id="customMinutes" min="0" max="180" value="5" title="Minutes">
+        <span>:</span>
+        <input type="number" id="customSeconds" min="0" max="59" value="0" title="Seconds">
+        <span>+</span>
+        <input type="number" id="customIncrement" min="0" max="60" value="0" title="Increment (seconds)">
+        <span>sec</span>
+      </span>
+    </div>
+    <div class="clocks-row">
+      <div class="clock-display" id="blackClockDisplay">
+        <span class="clock-label">Black</span>
+        <span class="clock-time" id="blackClockTime">--:--</span>
+      </div>
+      <div class="clock-display" id="whiteClockDisplay">
+        <span class="clock-label">White</span>
+        <span class="clock-time" id="whiteClockTime">--:--</span>
+      </div>
+    </div>
+  </div>
+
   <div id="gameOverBanner" class="game-over-banner"></div>
 
   <div class="board-wrapper theme-1" id="boardWrapper">
@@ -412,6 +551,14 @@ let selectedSquare = null;
 let legalMovesForSelected = [];
 let pendingPromotion = null; // {fromR, fromC, toR, toC}
 let gameOver = false;
+
+// Chess clock state
+let clockConfig = { base: 0, increment: 0 };
+let clockTime = { w: 0, b: 0 };
+let clockActiveColor = null;
+let clockIntervalId = null;
+let clockLastTick = null;
+let clockEnabled = false;
 
 // Initialize board data structure (8x8)
 function initBoardState() {
@@ -769,12 +916,19 @@ function makeMove(fromR, fromC, toR, toC, promotionChoice = null) {
   selectedSquare = null;
   legalMovesForSelected = [];
 
+  // Clock: credit the increment to whoever just moved, then tick for the other side
+  if (clockEnabled) {
+    addIncrement(color);
+    setActiveClock(currentTurn);
+  }
+
   // Check Game Ending States
   const anyLegal = hasAnyLegalMoves(currentTurn);
   const inCheck = isKingInCheck(currentTurn);
 
   if (!anyLegal) {
     gameOver = true;
+    stopClock();
     if (inCheck) {
       const winner = currentTurn === 'w' ? "Black" : "White";
       showGameOver(`Checkmate! ${winner} wins.`);
@@ -808,6 +962,104 @@ function showGameOver(message) {
   gameOverBanner.textContent = message;
   gameOverBanner.classList.add('active');
   statusText.textContent = "Game Over";
+}
+
+/* =========================================================
+   Chess Clock
+   ========================================================= */
+function parseTimeControl() {
+  const sel = document.getElementById('timeControlSelector');
+  if (sel.value === 'custom') {
+    const min = Math.max(0, parseInt(document.getElementById('customMinutes').value, 10) || 0);
+    const sec = Math.max(0, parseInt(document.getElementById('customSeconds').value, 10) || 0);
+    const inc = Math.max(0, parseInt(document.getElementById('customIncrement').value, 10) || 0);
+    return { base: Math.max(1, min * 60 + sec), increment: inc };
+  }
+  const [base, inc] = sel.value.split(':').map(Number);
+  return { base, increment: inc };
+}
+
+function formatClockTime(totalSeconds) {
+  const s = Math.max(0, Math.ceil(totalSeconds));
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}:${rem.toString().padStart(2, '0')}`;
+}
+
+function updateClockDisplay() {
+  const wEl = document.getElementById('whiteClockTime');
+  const bEl = document.getElementById('blackClockTime');
+  const wBox = document.getElementById('whiteClockDisplay');
+  const bBox = document.getElementById('blackClockDisplay');
+
+  wEl.textContent = clockEnabled ? formatClockTime(clockTime.w) : '--:--';
+  bEl.textContent = clockEnabled ? formatClockTime(clockTime.b) : '--:--';
+
+  wBox.classList.toggle('active', clockEnabled && clockActiveColor === 'w' && !gameOver);
+  bBox.classList.toggle('active', clockEnabled && clockActiveColor === 'b' && !gameOver);
+  wBox.classList.toggle('low-time', clockEnabled && clockTime.w <= 20 && clockTime.w > 0);
+  bBox.classList.toggle('low-time', clockEnabled && clockTime.b <= 20 && clockTime.b > 0);
+  wBox.classList.toggle('flagged', clockEnabled && clockTime.w <= 0);
+  bBox.classList.toggle('flagged', clockEnabled && clockTime.b <= 0);
+}
+
+function stopClock() {
+  if (clockIntervalId) {
+    clearInterval(clockIntervalId);
+    clockIntervalId = null;
+  }
+}
+
+function tickClock() {
+  if (!clockEnabled || gameOver || !clockActiveColor) return;
+  const now = Date.now();
+  const elapsed = (now - clockLastTick) / 1000;
+  clockLastTick = now;
+  clockTime[clockActiveColor] -= elapsed;
+
+  if (clockTime[clockActiveColor] <= 0) {
+    clockTime[clockActiveColor] = 0;
+    updateClockDisplay();
+    handleFlagFall(clockActiveColor);
+    return;
+  }
+  updateClockDisplay();
+}
+
+function startClockTicking() {
+  stopClock();
+  clockLastTick = Date.now();
+  clockIntervalId = setInterval(tickClock, 100);
+}
+
+function setActiveClock(color) {
+  clockActiveColor = color;
+  clockLastTick = Date.now();
+  updateClockDisplay();
+}
+
+function addIncrement(color) {
+  if (clockConfig.increment > 0) {
+    clockTime[color] += clockConfig.increment;
+  }
+}
+
+function handleFlagFall(color) {
+  stopClock();
+  gameOver = true;
+  const winner = color === 'w' ? 'Black' : 'White';
+  showGameOver(`Time's up! ${winner} wins on time.`);
+  updateClockDisplay();
+}
+
+// Reset and (re)start the clock using whatever time control is currently selected
+function setupClock() {
+  const cfg = parseTimeControl();
+  clockConfig = cfg;
+  clockTime = { w: cfg.base, b: cfg.base };
+  clockEnabled = true;
+  setActiveClock('w');
+  startClockTicking();
 }
 
 function openPromotionModal(color) {
@@ -952,7 +1204,16 @@ themeSelector.addEventListener('change', (e) => {
 /* Reset Game */
 document.getElementById('resetBtn').addEventListener('click', () => {
   initBoardState();
+  setupClock();
   renderBoard();
+});
+
+/* Chess Clock controls */
+const timeControlSelector = document.getElementById('timeControlSelector');
+const customTimeInputs = document.getElementById('customTimeInputs');
+
+timeControlSelector.addEventListener('change', (e) => {
+  customTimeInputs.style.display = e.target.value === 'custom' ? 'inline-flex' : 'none';
 });
 
 // Window resize listener to re-align coordinates cleanly
@@ -960,8 +1221,10 @@ window.addEventListener('resize', renderCoordinates);
 
 // Initialize Game
 initBoardState();
+setupClock();
 renderCoordinates();
 renderBoard();
+updateClockDisplay();
 </script>
 
 </body>
