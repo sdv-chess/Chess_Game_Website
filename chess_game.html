@@ -561,6 +561,7 @@ let clockActiveColor = null;
 let clockIntervalId = null;
 let clockLastTick = null;
 let clockEnabled = false;
+let clockStarted = false;
 
 // Initialize board data structure (8x8)
 function initBoardState() {
@@ -918,10 +919,17 @@ function makeMove(fromR, fromC, toR, toC, promotionChoice = null) {
   selectedSquare = null;
   legalMovesForSelected = [];
 
-  // Clock: credit the increment to whoever just moved, then tick for the other side
+  // Clock: starts ticking once White plays the first move. After that,
+  // credit the increment to whoever just moved, then tick for the other side.
   if (clockEnabled) {
-    addIncrement(color);
-    setActiveClock(currentTurn);
+    if (!clockStarted) {
+      clockStarted = true;
+      startClockTicking();
+      setActiveClock(currentTurn);
+    } else {
+      addIncrement(color);
+      setActiveClock(currentTurn);
+    }
   }
 
   // Check Game Ending States
@@ -1018,7 +1026,7 @@ function stopClock() {
 }
 
 function tickClock() {
-  if (!clockEnabled || gameOver || !clockActiveColor) return;
+  if (!clockEnabled || !clockStarted || gameOver || !clockActiveColor) return;
   const now = Date.now();
   const elapsed = (now - clockLastTick) / 1000;
   clockLastTick = now;
@@ -1059,14 +1067,17 @@ function handleFlagFall(color) {
   updateClockDisplay();
 }
 
-// Reset and (re)start the clock using whatever time control is currently selected
+// Reset the clock using whatever time control is currently selected. It stays
+// paused, showing full time for both sides, until White makes the first move.
 function setupClock() {
   const cfg = parseTimeControl();
   clockConfig = cfg;
   clockTime = { w: cfg.base, b: cfg.base };
   clockEnabled = true;
-  setActiveClock('w');
-  startClockTicking();
+  clockStarted = false;
+  stopClock();
+  clockActiveColor = 'w';
+  updateClockDisplay();
 }
 
 function openPromotionModal(color) {
